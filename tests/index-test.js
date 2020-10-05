@@ -96,11 +96,10 @@ fragment Apple as Person {
   });
 
   it('supports basic addon resolving', function () {
-    expect(
-      resolve('my-addon/_person.graphql', {
-        basedir: project.baseDir,
-      }),
-    ).to.eql(`${myAddon.baseDir}/addon/_person.graphql`);
+    const expected = resolve('my-addon/_person.graphql', {
+      basedir: project.baseDir,
+    });
+    expect(expected).to.eql(`${myAddon.baseDir}/addon/_person.graphql`);
   });
 
   it('returns null if no such package exists but the syntax is valid', function () {
@@ -112,11 +111,15 @@ fragment Apple as Person {
   });
 
   it('resolves in-repo addons', function () {
-    expect(
+    const expected = path.normalize(
       resolve('the-in-repo-addon/_person.graphql', {
         basedir: project.baseDir,
       }),
-    ).to.eql(path.join(project.baseDir, '/in-repo-addons/the-in-repo-addon/addon/_person.graphql'));
+    );
+
+    expect(expected).to.eql(
+      path.join(project.baseDir, '/in-repo-addons/the-in-repo-addon/addon/_person.graphql'),
+    );
   });
   it('resolves in-repo addons over dependencies', function () {});
   it('resolves dependencies over devDependencies', function () {});
