@@ -1,15 +1,33 @@
 'use strict';
 
+const IdentifierRegexp = /^(?:(?<scope>@[^/\s~)('!*]+)\/)?(?<name>[^@/_.\s~)('!*][^@/\s~)('!*]*)?(?:\/?(?<path>[^@\s]+))?$/;
+
 module.exports = function parseIdentifier(identifier) {
-  const matched = identifier.match(
-    /^(:?(?<scope>@[a-zA-Z0-9_-]+)\/)?(?<name>[a-zA-Z0-9_-]+)(:?\/(?<path>.*))?$/,
-  );
+  if (identifier === '') {
+    throw new Error(`[ember-cli-addon-resolver] invalid identifier: '${identifier}'`);
+  }
+
+  const matched = identifier.match(IdentifierRegexp);
 
   if (!matched) {
     throw new Error(`[ember-cli-addon-resolver] invalid identifier: '${identifier}'`);
   }
+  const { scope, name, path } = matched.groups;
+
+  let pathIsRelative = path !== undefined && path.charAt(0) === '.';
+  let packageIsPresent = scope !== undefined || name !== undefined;
+  if (pathIsRelative && packageIsPresent) {
+    throw new Error(`[ember-cli-addon-resolver] invalid identifier: '${identifier}'`);
+  }
+
+  const packageParts = [scope, name].filter(Boolean);
+  const pkg = packageParts.length > 0 ? packageParts.join('/') : null;
+
   return {
-    package: [matched.groups.scope, matched.groups.name].filter(Boolean).join('/'),
-    path: matched.groups.path || null,
+    package: pkg,
+    path: path !== undefined ? path : null,
   };
 };
+
+// exported for testing
+module.exports._IdentifierRegexp = IdentifierRegexp;
