@@ -1,8 +1,16 @@
 {
   "name": "ember-cli-addon-aware-resolver",
   "version": "1.0.0",
-  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stefanpenner/ember-cli-addon-aware-resolver.git"
+  },
   "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha tests --recursive",
+    "test:debug": "mocha --inspect-brk tests --recursive"
+  },
   "dependencies": {
     "path-root": "^0.1.1",
     "resolve-package-path": "^3.1.0"
@@ -16,14 +24,30 @@
     "eslint-plugin-prettier": "^3.1.4",
     "fixturify-project": "^2.1.0",
     "mocha": "^8.1.3",
-    "prettier": "^2.1.2"
-  },
-  "scripts": {
-    "test": "mocha tests --recursive",
-    "test:debug": "mocha --inspect-brk tests --recursive"
+    "prettier": "^2.1.2",
+    "release-it": "^14.0.2",
+    "release-it-lerna-changelog": "^2.4.0"
   },
   "engines": {
     "node": "10.* || >= 12"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "release-it": {
+    "plugins": {
+      "release-it-lerna-changelog": {
+        "infile": "CHANGELOG.md",
+        "launchEditor": true
+      }
+    },
+    "git": {
+      "tagName": "v${version}"
+    },
+    "github": {
+      "release": true,
+      "tokenRef": "GITHUB_AUTH"
+    }
   },
   "volta": {
     "node": "12.18.4",
