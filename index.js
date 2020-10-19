@@ -112,7 +112,7 @@ function resolveIdentifier(identifier, options = {}) {
  *  @param {string} identifier - The name to reoslve
  *  @param {object} options
  *  @param {string} options.basedir - The dirname to resolve relative to: this should be the dirname of the file that is referencing `identifier`
- *  @param {string} [options.pkg] - The package.json to use for determining what identifiers are valid dependencies.  If prsent, `options.pkgRoot` must also be specified.  If absent, `package.json` will be discovered by searching `options.basedir` by walking up the directory tree.
+ *  @param {string} [options.pkg] - The package.json to use for determining what identifiers are valid dependencies.  If present, `options.pkgRoot` must also be specified.  If absent, `package.json` will be discovered by searching `options.basedir` by walking up the directory tree.
  *  @param {string} [options.pkgRoot] - The directory that contains the `package.json` file whose contents were passed in as `options.pkg`.  Used as the search location for package dependencies (e.g. the location from which relative entries in `ember-addon.paths` will be resolved).  If present, `options.pkg` must also be specified.  If absent, it will default to the dirname in which `package.json` was discovered when determining the default value for `options.pkg`.
  */
 module.exports = function resolve(identifier, options = {}) {
