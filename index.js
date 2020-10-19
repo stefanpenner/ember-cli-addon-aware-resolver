@@ -1,6 +1,4 @@
 'use strict';
-// TODO: optimize fs operations
-
 const resolvePackagePath = require('resolve-package-path');
 const { findUpPackagePath } = resolvePackagePath;
 const fs = require('fs');
@@ -31,15 +29,14 @@ function resolvePackage(parsed, options) {
   let { pkg: currentPkg, pkgRoot } = options;
   if (currentPkg === undefined) {
     const pkgPath = findUpPackagePath(options.basedir);
-    currentPkg = JSON.parse(fs.readFileSync(pkgPath, 'UTF8'));
+    currentPkg = require(pkgPath);
     pkgRoot = path.dirname(pkgPath);
   }
 
   if (currentPkg['ember-addon'] && currentPkg['ember-addon'].paths) {
     for (const addonPath of currentPkg['ember-addon'].paths) {
       const addonRoot = path.resolve(pkgRoot, addonPath);
-      // we may need to gracefully fail if this errors since we are just linting
-      const pkg = JSON.parse(fs.readFileSync(`${addonRoot}/package.json`, 'utf8'));
+      const pkg = require(`${addonRoot}/package.json`);
       if (pkg.name === parsed.package) {
         if (isV1Addon(pkg)) {
           return `${addonRoot}/addon/${parsed.path}`;
@@ -73,7 +70,7 @@ function resolvePackage(parsed, options) {
     // no such package found
     return null;
   }
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'UTF8'));
+  const pkg = require(pkgPath);
   const root = path.dirname(pkgPath);
 
   if (isV1Addon(pkg)) {
