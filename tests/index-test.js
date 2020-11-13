@@ -3,6 +3,7 @@
 const { expect } = require('chai');
 const Project = require('fixturify-project');
 const _resolve = require('../index');
+const AppsCheckedForPathConflict = _resolve._AppsCheckedForPathConflict;
 const path = require('path');
 const fs = require('fs');
 
@@ -15,17 +16,61 @@ function resolve() {
 const parseIdentifier = require('../parse-identifier');
 describe('ember-cli-addon-resolver', function () {
   const project = new Project('my-project', '0.0.1');
-  const theInRepoAddon = new Project('the-in-repo-addon', '0.0.1', addon => {
-    addon.pkg.keywords = ['ember-addon'];
-    addon.files['addon'] = {
-      '_person.graphql': `
-fragment Apple on Person {
-  other
-  person
-  fragment
-}`,
-    };
-  });
+  const theInRepoAddon = new Project(
+    'the-in-repo-addon',
+    '0.0.1',
+    addon => {
+      addon.pkg.keywords = ['ember-addon'];
+      addon.files['addon'] = {
+        '_person.graphql': `
+        fragment Apple on Person {
+          other
+          person
+          fragment
+        }`,
+      };
+
+      addon.files['addon-test-support'] = {
+        '_pear.graphql': `
+        fragment Pear on Fruit {
+          id
+        }`,
+      };
+    },
+    path.join(project.baseDir, 'in-repo-addons'),
+  );
+
+  project.pkg['ember-addon'] = {
+    configPath: 'ember-config',
+    paths: ['./in-repo-addons/the-in-repo-addon', './in-repo-addons/the-v2-in-repo-addon'],
+  };
+
+  project.files['app'] = {
+    '_my-fragment.graphql': `
+    fragment Hello on Greeting {
+      hello
+    }`,
+
+    tests: {
+      helpers: {
+        'beet.js': `module.exports = {}`,
+        'cabbage.js': `module.exports = {}`,
+      },
+    },
+  };
+
+  project.files['config'] = {
+    'environment.js': `module.exports = {}`,
+  };
+
+  project.files['tests'] = {
+    helpers: {
+      'potato.js': `module.exports = {}`,
+      'beet.js': `module.exports = {}`,
+      'cabbage.js': `module.exports = {}`,
+    },
+  };
+
   const theV2InRepoAddon = new Project('the-v2-in-repo-addon', '0.0.1', addon => {
     addon.pkg.keywords = ['ember-addon'];
     addon.pkg['ember-addon'] = { version: 2 };
@@ -48,6 +93,27 @@ fragment Apple on Person {
           id
           name
         }`,
+    };
+
+    addon.files['config'] = {
+      'environment.js': `module.exports = {};`,
+    };
+
+    addon.files['addon-test-support'] = {
+      '_apple.graphql': `
+        fragment Apple on Fruit {
+          id
+        }`,
+    };
+
+    addon.files['tests'] = {
+      dummy: {
+        app: {
+          components: {
+            'foo.js': 'export default function() {}',
+          },
+        },
+      },
     };
 
     addon.addDependency('nested-dep', '0.0.1', nested => {
@@ -87,18 +153,30 @@ fragment Apple on Person {
     addon.pkg.keywords = ['ember-addon'];
     addon.files['addon'] = {
       '_person.graphql': `
-fragment Apple on Person {
-other
-person
-fragment
-}`,
+          fragment Apple on Person {
+            other
+            person
+            fragment
+          }`,
+    };
+  });
+
+  const projectWithoutConflicts = new Project('my-conflict-free-project', '0.0.1', project => {
+    project.files = {
+      tests: {
+        helpers: {
+          'potato.js': 'module.exports = {};',
+        },
+      },
     };
   });
 
   beforeEach(function () {
     project.writeSync();
-    theInRepoAddon.writeSync(`${project.baseDir}/in-repo-addons/`);
+    theInRepoAddon.writeSync();
     theV2InRepoAddon.writeSync(`${project.baseDir}/in-repo-addons/`);
+
+    projectWithoutConflicts.writeSync();
   });
 
   it('can parse identifiers', function () {
@@ -298,6 +376,154 @@ fragment
         basedir: myAddon.baseDir,
       }),
     ).to.eql(path.join(myAddon.baseDir, '/node_modules/nested-dep/addon/_person.graphql'));
+  });
+
+  it('resolves the project name as an implicit dependency', function () {
+    // allow app code, e.g. tests, to import ${appName}/path/to/_fragment.graphql
+    expect(
+      resolve('my-project/_my-fragment.graphql', {
+        basedir: project.baseDir,
+      }),
+    ).to.eql(path.join(project.baseDir, '/app/_my-fragment.graphql'));
+  });
+
+  it('resolves the project name as an implicit dependency for config paths', function () {
+    // allow app code, e.g. tests, to import ${appName}/path/to/_fragment.graphql
+    expect(
+      // also testing that we default to having a file extension of `.js`
+      resolve('my-project/config/environment', {
+        basedir: project.baseDir,
+      }),
+    ).to.eql(path.join(project.baseDir, '/config/environment.js'));
+  });
+
+  it('resolves the project name as an implicit dependency for test paths', function () {
+    // allow app code, e.g. tests, to import ${appName}/path/to/_fragment.graphql
+    expect(
+      resolve('my-project/tests/helpers/potato.js', {
+        basedir: project.baseDir,
+      }),
+    ).to.eql(path.join(project.baseDir, '/tests/helpers/potato.js'));
+  });
+
+  it('resolves addon names as implicit dependencies', function () {
+    // allow addons to import their own fragments absolutely
+    // in particular, this is helpful for importing public fragments from tests
+    // e.g. import ${myAddonName}/path/to/_fragment.graphql
+    expect(
+      resolve('my-addon/_person.graphql', {
+        basedir: myAddon.baseDir,
+      }),
+    ).to.eql(path.join(myAddon.baseDir, '/addon/_person.graphql'));
+  });
+
+  it('resolves addon names as implicit dependencies for config paths', function () {
+    // addons can have config for engines
+    expect(
+      resolve('my-addon/config/environment', {
+        basedir: myAddon.baseDir,
+      }),
+    ).to.eql(path.join(myAddon.baseDir, '/config/environment.js'));
+  });
+
+  it('resolves addon names as implicit dependencies for test-support paths', function () {
+    // allow addons to import their own fragments absolutely
+    // in particular, this is helpful for importing public fragments from tests
+    // e.g. import ${myAddonName}/path/to/_fragment.graphql
+    expect(
+      resolve('my-addon/test-support/_apple.graphql', {
+        basedir: myAddon.baseDir,
+      }),
+    ).to.eql(path.join(myAddon.baseDir, '/addon-test-support/_apple.graphql'));
+  });
+
+  it('resolves in-repo addon names as implicit dependencies', function () {
+    // allow addons to import their own fragments absolutely
+    // in particular, this is helpful for importing public fragments from tests
+    // e.g. import ${myAddonName}/path/to/_fragment.graphql
+    expect(
+      resolve('the-in-repo-addon/_person.graphql', {
+        basedir: theInRepoAddon.baseDir,
+      }),
+    ).to.eql(path.join(theInRepoAddon.baseDir, '/addon/_person.graphql'));
+  });
+
+  it('resolves in-repo addon names as implicit dependencies for test-support paths', function () {
+    // allow addons to import their own fragments absolutely
+    // in particular, this is helpful for importing public fragments from tests
+    // e.g. import ${myAddonName}/path/to/_fragment.graphql
+    expect(
+      resolve('the-in-repo-addon/test-support/_pear.graphql', {
+        basedir: theInRepoAddon.baseDir,
+      }),
+    ).to.eql(path.join(theInRepoAddon.baseDir, '/addon-test-support/_pear.graphql'));
+  });
+
+  it('warns at most once when resolving tests paths for classic ember apps that have an app/tests dir', function () {
+    AppsCheckedForPathConflict.clear();
+
+    const warnings = [];
+    const console = {
+      warn(msg) {
+        warnings.push(msg);
+      },
+    };
+    expect(
+      resolve('my-project/tests/helpers/beet.js', {
+        basedir: project.baseDir,
+        console,
+      }),
+    ).to.eql(path.join(project.baseDir, '/tests/helpers/beet.js'));
+
+    expect(warnings).to.deep.equal([
+      `The Ember app at "${project.baseDir}" has app/tests; this will not be resolved - import paths beginning with tests/ are assumed to be test modules and not app modules (stefanpenner/ember-cli-addon-resolver#9)`,
+    ]);
+
+    expect(
+      resolve('my-project/tests/helpers/beet.js', {
+        basedir: project.baseDir,
+        console,
+      }),
+    ).to.eql(path.join(project.baseDir, '/tests/helpers/beet.js'));
+    expect(
+      resolve('my-project/tests/helpers/cabbage.js', {
+        basedir: project.baseDir,
+        console,
+      }),
+    ).to.eql(path.join(project.baseDir, '/tests/helpers/cabbage.js'));
+
+    // we still have only 1 warning -- we warn only the first time
+    expect(warnings).to.deep.equal([
+      `The Ember app at "${project.baseDir}" has app/tests; this will not be resolved - import paths beginning with tests/ are assumed to be test modules and not app modules (stefanpenner/ember-cli-addon-resolver#9)`,
+    ]);
+  });
+
+  it('does not warn when resolving tests paths for classic ember apps that lack an app/tests dir', function () {
+    AppsCheckedForPathConflict.clear();
+
+    const warnings = [];
+    const console = {
+      warn(msg) {
+        warnings.push(msg);
+      },
+    };
+    expect(
+      resolve('my-conflict-free-project/tests/helpers/potato.js', {
+        basedir: projectWithoutConflicts.baseDir,
+        console,
+      }),
+    ).to.eql(path.join(projectWithoutConflicts.baseDir, '/tests/helpers/potato.js'));
+
+    // no warning since this project has no app/tests
+    expect(warnings).to.deep.equal([]);
+  });
+
+  it('resolves addon dummy app paths', function () {
+    expect(
+      resolve('dummy/components/foo.js', {
+        basedir: myAddon.baseDir,
+      }),
+    ).to.eql(path.join(myAddon.baseDir, 'tests/dummy/app/components/foo.js'));
   });
 
   it('does not resolve nested dev dependencies', function () {

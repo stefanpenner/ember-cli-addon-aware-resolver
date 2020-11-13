@@ -6,8 +6,27 @@ const path = require('path');
 
 const parseIdentifier = require('./parse-identifier');
 
+const AppsCheckedForPathConflict = new Set();
+
+function isAddon(pkg) {
+  return pkg.keywords && pkg.keywords.includes('ember-addon');
+}
+
+function isEmberApp(pkg) {
+  // We make a hard assumption that we're in an Ember app context in which
+  // we're only resolving ember-addon dependencies or the app that's being
+  // built (for self-references)
+  //
+  // We could add back support for non-ember {app,addon} dependencies, but it
+  // would require either:
+  //  1. Updating the API so users pass in additional context; or
+  //  2. Implementing a mechanism for identifying an ember app from its
+  //      package.json
+  return !isAddon(pkg);
+}
+
 function isV1Addon(pkg) {
-  if (!pkg.keywords || !pkg.keywords.includes('ember-addon')) {
+  if (!isAddon(pkg)) {
     return false;
   }
 
@@ -25,6 +44,33 @@ function isV1Addon(pkg) {
   return false;
 }
 
+function classicAppPath(pkgRoot, importPath, options) {
+  if (importPath.startsWith('config/') || importPath.startsWith('tests/')) {
+    if (importPath.startsWith('tests/') && !AppsCheckedForPathConflict.has(pkgRoot)) {
+      AppsCheckedForPathConflict.add(pkgRoot);
+      if (fs.existsSync(`${pkgRoot}/app/tests`)) {
+        const console = (options && options.console) || global.console;
+        console.warn(
+          `The Ember app at "${pkgRoot}" has app/tests; this will not be resolved - import paths beginning with tests/ are assumed to be test modules and not app modules (stefanpenner/ember-cli-addon-resolver#9)`,
+        );
+      }
+    }
+
+    return `${pkgRoot}/${importPath}`;
+  }
+
+  return `${pkgRoot}/app/${importPath}`;
+}
+
+function classicAddonPath(pkgRoot, importPath) {
+  if (importPath.startsWith('config/')) {
+    return `${pkgRoot}/${importPath}`;
+  } else if (importPath.startsWith('test-support/')) {
+    return `${pkgRoot}/addon-test-support/${importPath.substring(13)}`;
+  }
+  return `${pkgRoot}/addon/${importPath}`;
+}
+
 function resolvePackage(parsed, options) {
   let { pkg: currentPkg, pkgRoot } = options;
   if (currentPkg === undefined) {
@@ -33,21 +79,38 @@ function resolvePackage(parsed, options) {
     pkgRoot = path.dirname(pkgPath);
   }
 
+  // check for self-references
+  if (currentPkg.name === parsed.package) {
+    if (isV1Addon(currentPkg)) {
+      return classicAddonPath(pkgRoot, parsed.path);
+    } else if (isEmberApp(currentPkg)) {
+      return classicAppPath(pkgRoot, parsed.path, options);
+    } else {
+      // v2 addon, treat as a regular npm module
+      return `${pkgRoot}/${parsed.path}`;
+    }
+  } else if (parsed.package === 'dummy') {
+    return classicAppPath(`${pkgRoot}/tests/dummy`, parsed.path, options);
+  }
+
+  // check for in-repo addons
   if (currentPkg['ember-addon'] && currentPkg['ember-addon'].paths) {
     for (const addonPath of currentPkg['ember-addon'].paths) {
       const addonRoot = path.resolve(pkgRoot, addonPath);
       const pkg = require(`${addonRoot}/package.json`);
       if (pkg.name === parsed.package) {
         if (isV1Addon(pkg)) {
-          return `${addonRoot}/addon/${parsed.path}`;
+          return classicAddonPath(addonRoot, parsed.path);
         } else {
+          // v2 addon, treat as a regular npm module
           return `${addonRoot}/${parsed.path}`;
         }
       }
     }
   }
 
-  const currentIsAddon = currentPkg.keywords && currentPkg.keywords.includes('ember-addon');
+  // check for dependencies
+  const currentIsAddon = isAddon(currentPkg);
 
   if (
     !(
@@ -74,8 +137,9 @@ function resolvePackage(parsed, options) {
   const root = path.dirname(pkgPath);
 
   if (isV1Addon(pkg)) {
-    return `${root}/addon/${parsed.path}`;
+    return classicAddonPath(root, parsed.path);
   } else {
+    // v2 dependency, treat as a normal npm module
     return `${root}/${parsed.path}`;
   }
 }
@@ -83,6 +147,11 @@ function resolvePackage(parsed, options) {
 function resolveIdentifier(identifier, options = {}) {
   const { basedir } = options;
   const parsed = parseIdentifier(identifier);
+
+  if (parsed.path !== null && path.extname(parsed.path) === '') {
+    parsed.path = `${parsed.path}.js`;
+  }
+
   if (parsed.package !== null) {
     // #import "@scoped/pacakge"
     // #import "@scoped/package/_path.graphql"
@@ -133,3 +202,6 @@ module.exports = function resolve(identifier, options = {}) {
 
   return result;
 };
+
+// exported for testing
+module.exports._AppsCheckedForPathConflict = AppsCheckedForPathConflict;
