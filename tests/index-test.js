@@ -31,37 +31,32 @@ fragment Apple on Person {
     addon.pkg['ember-addon'] = { version: 2 };
     addon.files = {
       '_person.graphql': `
-fragment Apple on Person {
-  other
-  person
-  fragment
-}`,
+        fragment Apple on Person {
+          other
+          person
+          fragment
+        }`,
     };
   });
-
-  project.pkg['ember-addon'] = {
-    configPath: 'ember-config',
-    paths: ['./in-repo-addons/the-in-repo-addon', './in-repo-addons/the-v2-in-repo-addon'],
-  };
 
   const myAddon = project.addDependency('my-addon', '0.0.1', addon => {
     addon.pkg.keywords = ['ember-addon'];
 
     addon.files['addon'] = {
       '_person.graphql': `
-fragment Apple on Person {
-  id
-  name
-}`,
+        fragment Apple on Person {
+          id
+          name
+        }`,
     };
 
     addon.addDependency('nested-dep', '0.0.1', nested => {
       nested.pkg.keywords = ['ember-addon'];
       nested.files['addon'] = {
         '_person.graphql': `
-fragment AppleApple on Person {
-  likesApples
-}`,
+          fragment AppleApple on Person {
+            likesApples
+          }`,
       };
     });
 
@@ -69,9 +64,9 @@ fragment AppleApple on Person {
       nested.pkg.keywords = ['ember-addon'];
       nested.files['addon'] = {
         '_person.graphql': `
-fragment AppleApple on Person {
-  likesApples
-}`,
+          fragment AppleApple on Person {
+            likesApples
+          }`,
       };
     });
   });
@@ -81,36 +76,10 @@ fragment AppleApple on Person {
     addon.pkg['ember-addon'] = { version: 2 };
 
     addon.files['_person.graphql'] = `
-fragment Apple on Person {
-  id
-  name
-}`;
-  });
-
-  project.addDependency('my-nested-dep-addon', '0.0.1', addon => {
-    addon.pkg.keywords = ['ember-addon'];
-    addon.files['addon'] = {
-      '_person.graphql': `
-
-#import "nested-dep/path/_fragment.graphql"
-fragment Apple on Person {
-  id
-  name
-  ...NestedFragment
-}`,
-    };
-    addon.addDependency('nested-dep', '0.0.1', nestedDep => {
-      addon.pkg.keywords = ['ember-addon'];
-      addon.files['addon'] = {
-        path: {
-          '_fragment.graphql': `
-fragment NestedFragment on Person {
-  id
-}
-`,
-        },
-      };
-    });
+      fragment Apple on Person {
+        id
+        name
+      }`;
   });
 
   // test to ensure in-repo > dep
