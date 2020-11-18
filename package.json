@@ -1,6 +1,6 @@
 {
   "name": "ember-cli-addon-aware-resolver",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/stefanpenner/ember-cli-addon-aware-resolver.git"
