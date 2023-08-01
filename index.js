@@ -63,7 +63,7 @@ function classicAppPath(pkgRoot, importPath, options) {
 }
 
 function classicAddonPath(pkgRoot, importPath) {
-  const computedImportPath = importPath || 'index.js';
+  const computedImportPath = importPath ?? 'index.js';
   if (computedImportPath.startsWith('config/')) {
     return `${pkgRoot}/${computedImportPath}`;
   } else if (computedImportPath.startsWith('test-support/')) {
