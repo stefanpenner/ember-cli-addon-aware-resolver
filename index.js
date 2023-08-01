@@ -63,12 +63,13 @@ function classicAppPath(pkgRoot, importPath, options) {
 }
 
 function classicAddonPath(pkgRoot, importPath) {
-  if (importPath.startsWith('config/')) {
-    return `${pkgRoot}/${importPath}`;
-  } else if (importPath.startsWith('test-support/')) {
-    return `${pkgRoot}/addon-test-support/${importPath.substring(13)}`;
+  const computedImportPath = importPath || 'index.js';
+  if (computedImportPath.startsWith('config/')) {
+    return `${pkgRoot}/${computedImportPath}`;
+  } else if (computedImportPath.startsWith('test-support/')) {
+    return `${pkgRoot}/addon-test-support/${computedImportPath.substring(13)}`;
   }
-  return `${pkgRoot}/addon/${importPath}`;
+  return `${pkgRoot}/addon/${computedImportPath}`;
 }
 
 function resolvePackage(parsed, options) {
