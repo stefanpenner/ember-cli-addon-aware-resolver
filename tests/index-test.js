@@ -161,6 +161,14 @@ describe('ember-cli-addon-resolver', function () {
     };
   });
 
+  project.addDependency('dep-no-import-path', '0.0.1', addon => {
+    addon.pkg.keywords = ['ember-addon'];
+    addon.files['addon'] = {
+      'index.js': `
+          export default doTheThing {}`,
+    };
+  });
+
   const projectWithoutConflicts = new Project('my-conflict-free-project', '0.0.1', project => {
     project.files = {
       tests: {
@@ -354,6 +362,14 @@ describe('ember-cli-addon-resolver', function () {
     ).to.eql(path.join(project.baseDir, '/in-repo-addons/the-v2-in-repo-addon/_person.graphql'));
   });
 
+  it('resolves dependencies without an import path', function() {
+    expect(
+      resolve('dep-no-import-path', {
+        basedir: project.baseDir,
+      }),
+    ).to.eql(path.join(project.baseDir, 'node_modules/dep-no-import-path/addon/index.js'));
+  });
+  
   it('resolves in-repo addons over dependencies', function () {
     // we have a dep installed in node_modules
     expect(
