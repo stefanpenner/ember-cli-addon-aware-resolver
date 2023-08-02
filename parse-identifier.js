@@ -30,4 +30,4 @@ module.exports = function parseIdentifier(identifier) {
 };
 
 // exported for testing
-module.exports._IdentifierRegexp = IdentifierRegexp;
+module.exports.IdentifierRegexp = IdentifierRegexp;
