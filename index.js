@@ -180,9 +180,10 @@ function resolveIdentifier(identifier, options = {}) {
  *  @param {string} options.basedir - The dirname to resolve relative to: this should be the dirname of the file that is referencing `identifier`
  *  @param {string} [options.pkg] - The package.json to use for determining what identifiers are valid dependencies.  If present, `options.pkgRoot` must also be specified.  If absent, `package.json` will be discovered by searching `options.basedir` by walking up the directory tree.
  *  @param {string} [options.pkgRoot] - The directory that contains the `package.json` file whose contents were passed in as `options.pkg`.  Used as the search location for package dependencies (e.g. the location from which relative entries in `ember-addon.paths` will be resolved).  If present, `options.pkg` must also be specified.  If absent, it will default to the dirname in which `package.json` was discovered when determining the default value for `options.pkg`.
- */
-module.exports = function resolve(identifier, options = {}) {
-  const { basedir, pkg, pkgRoot } = options;
+ *  @param {boolean} [options.throwOnMissingFile] - Defaults to true. If false, it returns the computed path even if the file does not exist. 
+*/
+ module.exports = function resolve(identifier, options = {}) {
+  const { basedir, pkg, pkgRoot, throwOnMissingFile = true } = options;
   if (typeof basedir !== 'string') {
     throw new Error('ember-cli-addon-resolver: options.basedir is required');
   }
@@ -194,7 +195,7 @@ module.exports = function resolve(identifier, options = {}) {
   }
 
   let result = resolveIdentifier(identifier, options);
-  if (result === null || !fs.existsSync(result)) {
+  if (result === null || (throwOnMissingFile !== false && !fs.existsSync(result))) {
     let err = new Error(`ENOENT: Unable to resolve import ${identifier} from ${options.basedir}`);
     err.code = 'MODULE_NOT_FOUND';
     throw err;
