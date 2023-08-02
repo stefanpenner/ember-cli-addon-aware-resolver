@@ -320,6 +320,15 @@ describe('ember-cli-addon-resolver', function () {
     }
   });
 
+  it('does not throw `Unable to resolve import` if `throwOnMissingFile` is false', function () {
+    expect(
+      resolve('the-in-repo-addon/index.js', {
+        basedir: project.baseDir,
+        throwOnMissingFile: false
+      }),
+    ).to.eql(path.join(project.baseDir, '/in-repo-addons/the-in-repo-addon/addon/index.js'));
+  });
+
   it('resolves in-repo v1 addons from the root', function () {
     expect(
       resolve('the-in-repo-addon/_person.graphql', {
